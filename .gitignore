@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Generated project data and artifacts
+/data/raw/
+/data/processed/*.xlsx
+!/data/processed/terremotos_procesados_reshape_test.xlsx
+/models/*.pkl
+/logs/
+/src/logs/
