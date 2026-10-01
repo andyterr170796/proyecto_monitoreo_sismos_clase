@@ -3,10 +3,9 @@ import pandas as pd
 from datetime import datetime, timedelta
 import logging
 from src.config.config import (
-    DB_PARQUET,
+    PATHS,
     LIMITE_POR_PAGINA,
     MAGNITUD_MINIMA,
-    RAW_DATA_DIR,
     setup_logging,
 )
 
@@ -117,10 +116,10 @@ def carga_batch_sismos():
     logger_detalle, logger_fecha_maxima = configurar_logs()
     inicio_ejecucion = datetime.now()
     logger_detalle.info("Inicio de ejecución: %s", inicio_ejecucion.isoformat())
-    RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    PATHS["raw_data_dir"].mkdir(parents=True, exist_ok=True)
     ahora = datetime.now()
 
-    if DB_PARQUET.exists():
+    if PATHS["db_parquet"].exists():
         fecha_inicio = ahora - timedelta(days=7)
         tipo_carga = "incremental"
     else:
@@ -145,8 +144,8 @@ def carga_batch_sismos():
         logger_detalle.info("Registros extraídos desde USGS: %s", len(datos_nuevos))
         print(f"Se extrajeron {len(datos_nuevos)} registros desde USGS.")
 
-        if DB_PARQUET.exists():
-            datos_existentes = pd.read_parquet(DB_PARQUET)
+        if PATHS["db_parquet"].exists():
+            datos_existentes = pd.read_parquet(PATHS["db_parquet"])
             cantidad_existente = len(datos_existentes)
             datos = pd.concat([datos_existentes, datos_nuevos], ignore_index=True)
         else:
@@ -155,7 +154,7 @@ def carga_batch_sismos():
             datos = datos_nuevos
 
         datos = deduplicar(datos)
-        datos.to_parquet(DB_PARQUET, index=False)
+        datos.to_parquet(PATHS["db_parquet"], index=False)
 
         cantidad_insertada = max(len(datos) - cantidad_existente, 0)
         cantidad_descartada = cantidad_existente + len(datos_nuevos) - len(datos)
@@ -175,7 +174,7 @@ def carga_batch_sismos():
             len(datos),
         )
 
-        print(f"Base Parquet actualizada: {DB_PARQUET}")
+        print(f"Base Parquet actualizada: {PATHS['db_parquet']}")
         print(f"Total de registros únicos almacenados: {len(datos)}")
         return datos
     except Exception:
