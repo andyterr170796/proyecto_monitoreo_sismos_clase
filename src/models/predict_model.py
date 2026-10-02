@@ -68,12 +68,17 @@ def predicciones_en_produccion(model=None):
             "El scaler guardado fue entrenado con features distintas. "
             "Vuelve a entrenar el modelo ejecutando: python -m src.main_pipeline"
         )
-    X_test_scaled = scaler.transform(X_test)
+    pipeline = bundle.get("pipeline")
+    if pipeline is None:
+        X_test_scaled = scaler.transform(X_test)
+        predictions = model.predict(X_test_scaled)
+    else:
+        predictions = pipeline.predict(X_test)
 
     logger.info("Conjunto de prueba cargado: X_test=%s, y_test=%s", X_test.shape, y_test.shape)
     resultados = X_test.copy()
     resultados["y_test"] = y_test.to_numpy()
-    resultados["predicciones"] = model.predict(X_test_scaled)
+    resultados["predicciones"] = predictions
 
     best_model_name = bundle.get("best_model_name") or type(model).__name__
     logger.info("Modelo ganador cargado para predicción: %s", best_model_name)
@@ -85,6 +90,7 @@ def predicciones_en_produccion(model=None):
                 "Vuelve a entrenar ejecutando: python -m src.main_pipeline"
             )
     else:
+        X_test_scaled = scaler.transform(X_test)
         shap_values = shap.TreeExplainer(model).shap_values(X_test_scaled)
         if isinstance(shap_values, list):
             shap_values = shap_values[0]

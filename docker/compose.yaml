@@ -1,0 +1,52 @@
+name: proyecto_monitoreo_sismos_clase
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command:
+      - python
+      - -m
+      - streamlit
+      - run
+      - app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+    ports:
+      - "8501:8501"
+    volumes:
+      - ../data:/app/data
+      - ../models:/app/models
+      - ../outputs:/app/outputs
+      - ../logs:/app/logs
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ["python", "-m", "src.daily_scheduler"]
+    environment:
+      TZ: America/Lima
+    volumes:
+      - ../data:/app/data
+      - ../models:/app/models
+      - ../outputs:/app/outputs
+      - ../logs:/app/logs
+    restart: unless-stopped
+
+  pipeline:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    profiles:
+      - pipeline
+    command: ["python", "-m", "src.main_pipeline"]
+    environment:
+      TZ: America/Lima
+    volumes:
+      - ../data:/app/data
+      - ../models:/app/models
+      - ../outputs:/app/outputs
+      - ../logs:/app/logs

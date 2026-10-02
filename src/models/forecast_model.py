@@ -38,8 +38,9 @@ def forecast_next_days(history, model_bundle, days=3):
         raise ValueError("Se necesitan al menos 12 días de historial para generar los rezagos.")
 
     history = history.sort_values("fecha").reset_index(drop=True).copy()
+    pipeline = model_bundle.get("pipeline")
     model = model_bundle["model"]
-    scaler = model_bundle["scaler"]
+    scaler = model_bundle.get("scaler")
     ema_states = {
         3: float(history["EMA_sismos"].iloc[-1]),
         5: float(history["EMA2_sismos"].iloc[-1]),
@@ -55,8 +56,11 @@ def forecast_next_days(history, model_bundle, days=3):
             ema_states[span] = alpha * previous_count + (1 - alpha) * ema_states[span]
 
         features = _next_day_features(history, forecast_date, ema_states)
-        scaled_features = scaler.transform(features)
-        prediction = max(0.0, float(model.predict(scaled_features)[0]))
+        if pipeline is not None:
+            prediction = pipeline.predict(features)[0]
+        else:
+            prediction = model.predict(scaler.transform(features))[0]
+        prediction = max(0.0, float(prediction))
         forecasts.append({
             "fecha": forecast_date,
             "prediccion": prediction,

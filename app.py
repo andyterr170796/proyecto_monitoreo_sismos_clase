@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.config.config import NUMERIC_FEATURES, PATHS, TARGET
-from src.models.forecast_model import forecast_next_days
+from src.main_pipeline import forecast_next_days
 
 
 st.set_page_config(
@@ -114,8 +114,12 @@ def _validate_artifacts(history, validation, bundle):
 
 def _score_validation(validation, bundle):
     X = validation.loc[:, NUMERIC_FEATURES]
-    scaled = bundle["scaler"].transform(X)
-    predicted = bundle["model"].predict(scaled)
+    pipeline = bundle.get("pipeline")
+    if pipeline is not None:
+        predicted = pipeline.predict(X)
+    else:
+        scaled = bundle["scaler"].transform(X)
+        predicted = bundle["model"].predict(scaled)
     actual = validation[TARGET].to_numpy(dtype=float)
     errors = actual - predicted
     score_frame = pd.DataFrame({

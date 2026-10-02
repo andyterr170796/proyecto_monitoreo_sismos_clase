@@ -1,43 +1,71 @@
 import logging
-import os
 import sys
-import pandas as pd
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from pathlib import Path
 
-from src.config.config import PATHS, NUMERIC_FEATURES, TARGET, setup_logging
+import pandas as pd
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.config.config import (
+    NUMERIC_FEATURES,
+    PATHS,
+    TARGET,
+    setup_logging,
+)
 from src.data.get_data import carga_batch_sismos
 from src.data.transform_data import transformar_datos
-
 from src.features.build_features import split_features_target
-from src.models.train_model import train_models, save_model
+from src.models.forecast_model import forecast_next_days
 from src.models.predict_model import predicciones_en_produccion
+from src.models.train_model import save_model, train_model_pipeline
 
-def setup_logger():
-    setup_logging()
 
 def run_pipeline():
-    """Orquestador maestro: une y ejecuta todos los bloques evitando Spaghetti code (Slide 41)."""
-    setup_logger()
-    logging.getLogger(__name__)
-    logging.info("Iniciando Pipeline SISMOS...")
-    df_load = carga_batch_sismos()
-    df_clean = transformar_datos()
-    df_validation = pd.read_excel(PATHS["processed_excel_reshape_test"])
-    df_train = df_clean.iloc[:-len(df_validation)]
-    logging.info(
-        "Train: %s filas | Validation: %s filas",
-        len(df_train),
-        len(df_validation),
-    )
-    X_train, y_train = split_features_target(df_train, NUMERIC_FEATURES, TARGET)
-    X_validation, y_validation = split_features_target(
-        df_validation,
-        NUMERIC_FEATURES,
-        TARGET,
-    )
-    model_lr = train_models(X_train, y_train, X_validation, y_validation)
-    save_model(model_lr, PATHS["model_store"])
-    predicciones_en_produccion(model_lr)
+    """Ejecuta extracción, transformación, entrenamiento y evaluación en orden."""
+    setup_logging()
+    logger = logging.getLogger(__name__)
+    logger.info("Iniciando pipeline integral de monitoreo sísmico")
 
-if __name__ == '__main__':
+    carga_batch_sismos()
+    training_data = transformar_datos()
+    validation_data = pd.read_excel(PATHS["processed_excel_reshape_test"])
+
+    if validation_data.empty or len(validation_data) >= len(training_data):
+        raise ValueError("Los conjuntos de entrenamiento y validación no son válidos.")
+    training_data = training_data.iloc[:-len(validation_data)]
+    logger.info(
+        "Train: %s filas | Validation: %s filas",
+        len(training_data),
+        len(validation_data),
+    )
+
+    X_train, y_train = split_features_target(
+        training_data, NUMERIC_FEATURES, TARGET
+    )
+    X_validation, y_validation = split_features_target(
+        validation_data, NUMERIC_FEATURES, TARGET
+    )
+    model_bundle = train_model_pipeline(
+        X_train,
+        y_train,
+        X_validation,
+        y_validation,
+    )
+    promotion = save_model(model_bundle, PATHS["model_store"])
+    logger.info("Historial de métricas actualizado en %s", promotion["metrics_path"])
+    if promotion["promoted"]:
+        logger.info("Candidato promovido desde %s", promotion["version_path"])
+        predicciones_en_produccion()
+    else:
+        logger.info(
+            "Se mantiene el modelo ganador y sus artefactos de interpretabilidad y comparación"
+        )
+
+    logger.info("Pipeline finalizado correctamente")
+    return model_bundle
+
+
+if __name__ == "__main__":
     run_pipeline()

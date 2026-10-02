@@ -7,9 +7,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 PATHS = {
     "project_root": PROJECT_ROOT,
     "model_dir": PROJECT_ROOT / "models",
-    "model_store": PROJECT_ROOT / "models" / "model_lr.pkl",
-    "model_scaler": PROJECT_ROOT / "models" / "standard_scaler.pkl",
+    "model_store": PROJECT_ROOT / "models" / "winner_model.pkl",
+    "model_versions_dir": PROJECT_ROOT / "models" / "versions",
     "outputs_dir": PROJECT_ROOT / "outputs",
+    "model_metrics": PROJECT_ROOT / "outputs" / "model_metrics.xlsx",
     "comparison_plot": PROJECT_ROOT / "outputs" / "real_vs_prediccion.png",
     "model_interpretability": PROJECT_ROOT / "outputs" / "interpretabilidad_modelo.xlsx",
     "data_dir": PROJECT_ROOT / "data",
